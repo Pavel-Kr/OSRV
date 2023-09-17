@@ -28,7 +28,7 @@ struct Object
   }
 
   int x_pos = 0, y_pos = 0;
-  bool flag_x = 0, flag_y = 0;
+  int direction;
   char symbol = '*';
 };
 
@@ -39,12 +39,6 @@ void move_down(Object *obj, int border);
 
 int main(int argc, char *argv[])
 {
-  struct winsize w;
-  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-
-  Object obj(w.ws_row / 2, w.ws_col / 2);
-  std::vector<Object> object_pool;
-  object_pool.push_back(obj);
   if (argc < 4)
   {
     return 0;
@@ -64,54 +58,38 @@ int main(int argc, char *argv[])
     return 0;
   }
 
+  struct winsize w;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+
+  Object obj(w.ws_row / 2, w.ws_col / 2);
+  obj->direction = direction;
+
   initscr();
   start_color();
   refresh();
 
   init_pair(1, color, COLOR_BLACK);
 
-  bool start_flag = 0;
-  if (direction == 1 || direction == 3)
-  {
-    start_flag = 1;
-  }
-
-  while (true)
-  {
-    if (direction == (int)enDirections::RIGHT || direction == (int)enDirections::UP)
-    {
-      if (start_flag)
+  while (true) {
+      switch (obj->direction)
       {
-        object_pool[0].flag_y = 1;
-        start_flag = 0;
+      case enDirections::UP:
+          move_up(&obj, 0);
+          break;
+      case enDirections::DOWN:
+          move_down(&obj, w.ws_row);
+          break;
+      case enDirections::LEFT:
+          move_left(&obj, 0);
+          break;
+      case enDirections::RIGHT:
+          move_right(&obj, w.ws_col);
+          break;
+      default:
+          fprintf(stderr, "Error: Wrong direction %d\n", obj->direction);
+          endwin();
+          return 0;
       }
-      if (object_pool[0].flag_y == 0)
-      {
-        move_right(&object_pool[0], w.ws_col);
-      }
-      if (object_pool[0].flag_y == 1)
-      {
-        move_left(&object_pool[0], 0);
-      }
-    }
-    else if (direction == (int)enDirections::LEFT || direction == (int)enDirections::DOWN)
-    {
-      if (start_flag)
-      {
-        object_pool[0].flag_x = 1;
-        start_flag = 0;
-      }
-      if (object_pool[0].flag_x == 0)
-      {
-        move_up(&object_pool[0], 0);
-      }
-      if (object_pool[0].flag_x == 1)
-      {
-        move_down(&object_pool[0], w.ws_row);
-      }
-    }
-    refresh();
-    std::this_thread::sleep_for(std::chrono::milliseconds(delay));
   }
 
   endwin();
@@ -122,7 +100,7 @@ void move_left(Object *obj, int border)
 {
   if (obj->y_pos - 2 < border)
   {
-    obj->flag_y = 0;
+      obj->direction = enDirections::RIGHT;
   }
   mvaddch(obj->x_pos, obj->y_pos, ' ');
   mvaddch(obj->x_pos, --obj->y_pos, obj->symbol | A_BOLD | A_UNDERLINE | COLOR_PAIR(1));
@@ -132,7 +110,7 @@ void move_right(Object *obj, int border)
 {
   if (obj->y_pos + 2 > border)
   {
-    obj->flag_y = 1;
+      obj->direction = enDirections::LEFT;
   }
   mvaddch(obj->x_pos, obj->y_pos, ' ');
   mvaddch(obj->x_pos, ++obj->y_pos, obj->symbol | A_BOLD | A_UNDERLINE | COLOR_PAIR(1));
@@ -142,7 +120,7 @@ void move_up(Object *obj, int border)
 {
   if (obj->x_pos - 2 < border)
   {
-    obj->flag_x = 1;
+      obj->direction = enDirections::DOWN;
   }
   mvaddch(obj->x_pos, obj->y_pos, ' ');
   mvaddch(--obj->x_pos, obj->y_pos, obj->symbol | A_BOLD | A_UNDERLINE | COLOR_PAIR(1));
@@ -152,7 +130,7 @@ void move_down(Object *obj, int border)
 {
   if (obj->x_pos + 2 > border)
   {
-    obj->flag_x = 0;
+      obj->direction = enDirections::UP;
   }
   mvaddch(obj->x_pos, obj->y_pos, ' ');
   mvaddch(++obj->x_pos, obj->y_pos, obj->symbol | A_BOLD | A_UNDERLINE | COLOR_PAIR(1));
